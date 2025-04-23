@@ -1,7 +1,3 @@
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://js.stripe.com/v3/"></script>
   <style>
     body {
       font-family: 'Arial', sans-serif;
@@ -49,6 +46,26 @@
 <body class="text-gray-900">
   <div id="splash">🚀 ProDevStudio / LaunchPad</div>
 
+  <div id="auth" class="flex flex-col items-center justify-center h-screen">
+    <div class="bg-white shadow-lg rounded-lg p-6 w-full max-w-sm">
+      <h2 class="text-xl font-semibold text-center">Login or Register</h2>
+      <div class="flex mt-4 mb-2 space-x-2 justify-center">
+        <button onclick="toggleAuth('login')" class="px-3 py-1 bg-blue-500 text-white rounded">Login</button>
+        <button onclick="toggleAuth('register')" class="px-3 py-1 bg-green-500 text-white rounded">Register</button>
+      </div>
+      <div id="loginForm">
+        <input id="loginUser" type="text" placeholder="Username" class="w-full mb-2 px-3 py-2 border rounded" />
+        <input id="loginPass" type="password" placeholder="Password" class="w-full mb-4 px-3 py-2 border rounded" />
+        <button onclick="authUser('login')" class="w-full bg-blue-600 text-white py-2 rounded">Login</button>
+      </div>
+      <div id="registerForm" class="hidden">
+        <input id="registerUser" type="text" placeholder="Username" class="w-full mb-2 px-3 py-2 border rounded" />
+        <input id="registerPass" type="password" placeholder="Password" class="w-full mb-4 px-3 py-2 border rounded" />
+        <button onclick="authUser('register')" class="w-full bg-green-600 text-white py-2 rounded">Register</button>
+      </div>
+    </div>
+  </div>
+
   <div id="main" class="hidden">
     <header class="text-center py-6">
       <h1 class="text-4xl font-bold">LaunchPad</h1>
@@ -65,6 +82,9 @@
         <button onclick="exportDoc('txt')" class="bg-purple-500 text-white px-4 py-2 rounded">Export .txt</button>
         <button onclick="exportDoc('html')" class="bg-red-500 text-white px-4 py-2 rounded">Export .html</button>
         <button onclick="exportDoc('md')" class="bg-indigo-500 text-white px-4 py-2 rounded">Export .md</button>
+        <button onclick="cloudSave()" class="bg-cyan-500 text-white px-4 py-2 rounded">Cloud Save</button>
+        <button onclick="cloudLoad()" class="bg-amber-500 text-white px-4 py-2 rounded">Cloud Load</button>
+        <button onclick="clearEditor()" class="bg-pink-500 text-white px-4 py-2 rounded">New File</button>
       </div>
 
       <div id="editorContainer"></div>
@@ -79,7 +99,7 @@
         <div class="mt-6">
           <h3 class="text-lg font-semibold">Support LaunchPad</h3>
           <p class="text-sm">Like what we do? Donate to keep LaunchPad growing!</p>
-          <a href="#" class="mt-2 inline-block bg-pink-500 text-white px-4 py-2 rounded">Donate</a>
+          <button id="donateBtn" class="mt-2 inline-block bg-pink-500 text-white px-4 py-2 rounded">Donate</button>
         </div>
       </div>
     </div>
@@ -88,6 +108,7 @@
   <script>
     let editor;
     let mode = 'code';
+    let currentUser = null;
 
     require.config({ paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs" } });
     require(["vs/editor/editor.main"], function () {
@@ -99,6 +120,20 @@
       });
     });
 
+    function toggleAuth(type) {
+      document.getElementById('loginForm').classList.toggle('hidden', type !== 'login');
+      document.getElementById('registerForm').classList.toggle('hidden', type !== 'register');
+    }
+
+    function authUser(type) {
+      const user = document.getElementById(type + 'User').value;
+      const pass = document.getElementById(type + 'Pass').value;
+      localStorage.setItem('launchpad_user', user);
+      currentUser = user;
+      document.getElementById('auth').classList.add('hidden');
+      document.getElementById('main').classList.remove('hidden');
+    }
+
     function setMode(newMode) {
       mode = newMode;
       const language = newMode === 'code' ? 'javascript' : 'plaintext';
@@ -109,6 +144,22 @@
       const content = editor.getValue();
       localStorage.setItem('launchpad_content', content);
       alert('Document saved locally.');
+    }
+
+    function cloudSave() {
+      if (!currentUser) return alert("Please login.");
+      fetch('/save.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: currentUser, content: editor.getValue() })
+      }).then(res => res.text()).then(alert);
+    }
+
+    function cloudLoad() {
+      if (!currentUser) return alert("Please login.");
+      fetch(`/load.php?user=${currentUser}`)
+        .then(res => res.text())
+        .then(content => editor.setValue(content));
     }
 
     function exportDoc(format) {
@@ -132,16 +183,26 @@
       monaco.editor.setTheme(newTheme);
     }
 
+    function clearEditor() {
+      const confirmClear = confirm("Start a new file? Your current work will be cleared.");
+      if (confirmClear) {
+        editor.setValue("");
+      }
+    }
+
+    document.getElementById('donateBtn').addEventListener('click', function () {
+      const stripe = Stripe('pk_test_XXXXXXXXXXXXXXXXXXXXXXXX');
+      stripe.redirectToCheckout({
+        lineItems: [{ price: 'price_XXXXXXXXXXXXXX', quantity: 1 }],
+        mode: 'payment',
+        successUrl: window.location.href,
+        cancelUrl: window.location.href
+      });
+    });
+
     window.onload = () => {
       const splash = document.getElementById('splash');
-      const main = document.getElementById('main');
-      setTimeout(() => {
-        splash.style.opacity = 0;
-        setTimeout(() => {
-          splash.style.display = 'none';
-          main.classList.remove('hidden');
-        }, 500);
-      }, 3000);
+      setTimeout(() => splash.style.display = 'none', 3000);
     }
   </script>
 </body>
