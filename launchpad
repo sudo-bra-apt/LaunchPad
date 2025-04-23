@@ -96,8 +96,15 @@
           <img src="https://via.placeholder.com/300x100" alt="ProDevStudio Ad" class="mx-auto mt-2">
         </div>
 
-        <div class="mt-6">
-          <h3 class="text-lg font-semibold">Support LaunchPad</h3>
+        <div class=<a href="https://www.paypal.com/donate/?hosted_button_id=YOUR_ID_HERE" target="_blank">
+  <button>Donate</button>
+</a>
+"mt-6">
+<form action="https://www.paypal.com/donate" method="post" target="_blank">
+  <input type="hidden" name="hosted_button_id" value="YOUR_ID_HERE" />
+  <input type="submit" value="Donate" />
+</form>
+<h3 class="text-lg font-semibold">Support LaunchPad</h3>
           <p class="text-sm">Like what we do? Donate to keep LaunchPad growing!</p>
           <button id="donateBtn" class="mt-2 inline-block bg-pink-500 text-white px-4 py-2 rounded">Donate</button>
         </div>
